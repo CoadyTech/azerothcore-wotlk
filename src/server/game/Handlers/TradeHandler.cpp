@@ -249,6 +249,14 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& /*recvPacket*/)
     Item* myItems[TRADE_SLOT_TRADED_COUNT]  = { };
     Item* hisItems[TRADE_SLOT_TRADED_COUNT] = { };
 
+    // an offered item was moved out of the inventory or its stack changed after it was shown: the
+    // other side may already have accepted what it saw, so the trade cannot go through
+    if (!my_trade->AreItemsUnchanged() || !his_trade->AreItemsUnchanged())
+    {
+        _player->TradeCancel(true);
+        return;
+    }
+
     // set before checks for propertly undo at problems (it already set in to client)
     my_trade->SetAccepted(true);
 

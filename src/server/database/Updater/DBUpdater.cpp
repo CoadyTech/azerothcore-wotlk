@@ -524,7 +524,18 @@ void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string co
     // the server user only and delete it as soon as the client has run
     std::string const confFile = tempDir + Acore::StringFormat("mysql_ac_{}.conf",
         ByteArrayToHexStr(Acore::Crypto::GetRandomBytes<16>()));
-    std::string const confContent = "[client]\npassword = \"" + password + "\"\n";
+
+    // backslashes and quotes have to be escaped inside a quoted option file value
+    std::string escapedPassword;
+    for (char c : password)
+    {
+        if (c == '\\' || c == '"')
+            escapedPassword.push_back('\\');
+
+        escapedPassword.push_back(c);
+    }
+
+    std::string const confContent = "[client]\npassword = \"" + escapedPassword + "\"\n";
 
     bool confWritten = false;
 

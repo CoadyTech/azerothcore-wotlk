@@ -28,6 +28,22 @@ Item* TradeData::GetItem(TradeSlots slot) const
     return m_items[slot] ? _player->GetItemByGuid(m_items[slot]) : nullptr;
 }
 
+bool TradeData::AreItemsUnchanged() const
+{
+    for (uint8 i = 0; i < TRADE_SLOT_COUNT; ++i)
+    {
+        if (!m_items[i])
+            continue;
+
+        // sold, mailed, banked or destroyed items are no longer found; merges and partial sells change the count
+        Item const* item = _player->GetItemByGuid(m_items[i]);
+        if (!item || item->GetCount() != m_itemCounts[i])
+            return false;
+    }
+
+    return true;
+}
+
 bool TradeData::HasItem(ObjectGuid itemGuid) const
 {
     for (uint8 i = 0; i < TRADE_SLOT_COUNT; ++i)
@@ -59,6 +75,7 @@ void TradeData::SetItem(TradeSlots slot, Item* item)
         return;
 
     m_items[slot] = itemGuid;
+    m_itemCounts[slot] = item ? item->GetCount() : 0;
 
     SetAccepted(false);
     GetTraderData()->SetAccepted(false);

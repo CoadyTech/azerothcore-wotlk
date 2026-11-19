@@ -3316,9 +3316,13 @@ public:
             return false;
         }
 
-        Player* playerTarget = target->GetConnectedPlayer();
+        Player* playerTarget = target ? target->GetConnectedPlayer() : nullptr;
         if (playerTarget && !creatureTarget)
         {
+            // can freeze only players with less security
+            if (handler->HasLowerSecurity(playerTarget))
+                return false;
+
             handler->PSendSysMessage(LANG_COMMAND_FREEZE, target->GetName());
 
             if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_FREEZE))

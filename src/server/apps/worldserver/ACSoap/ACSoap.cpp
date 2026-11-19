@@ -19,6 +19,7 @@
 #include "AccountMgr.h"
 #include "ChatCommand.h"
 #include "Log.h"
+#include "Realm.h"
 #include "World.h"
 #include "soapStub.h"
 #include <chrono>
@@ -101,7 +102,7 @@ int ns1__executeCommand(soap* soap, char* command, char** result)
         return 401;
     }
 
-    if (AccountMgr::GetSecurity(accountId) < SEC_ADMINISTRATOR)
+    if (AccountMgr::GetSecurity(accountId, realm.Id.Realm) < SEC_ADMINISTRATOR)
     {
         LOG_DEBUG("network.soap", "ACSoap: {}'s gmlevel is too low", soap->userid);
         return 403;

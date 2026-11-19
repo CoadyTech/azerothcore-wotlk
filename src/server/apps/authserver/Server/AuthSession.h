@@ -81,6 +81,7 @@ protected:
 private:
     bool HandleLogonChallenge();
     bool HandleLogonProof();
+    void HandleFailedLogin(std::string_view what);
     bool HandleReconnectChallenge();
     bool HandleReconnectProof();
     bool HandleRealmList();

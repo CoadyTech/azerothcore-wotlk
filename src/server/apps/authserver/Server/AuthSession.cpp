@@ -475,6 +475,61 @@ void AuthSession::LogonChallengeCallback(PreparedQueryResult result)
     SendPacket(pkt);
 }
 
+// Counts a failed login attempt and applies the WrongPass.* ban settings
+void AuthSession::HandleFailedLogin(std::string_view what)
+{
+    LOG_INFO("server.authserver.hack", "'{}:{}' [AuthChallenge] account {} tried to login with invalid {}!",
+        GetRemoteIpAddress().to_string(), GetRemotePort(), _accountInfo.Login, what);
+
+    uint32 MaxWrongPassCount = sConfigMgr->GetOption<int32>("WrongPass.MaxCount", 0);
+
+    // We can not include the failed account login hook. However, this is a workaround to still log this.
+    if (sConfigMgr->GetOption<bool>("WrongPass.Logging", false))
+    {
+        LoginDatabasePreparedStatement* logstmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_FALP_IP_LOGGING);
+        logstmt->SetData(0, _accountInfo.Id);
+        logstmt->SetData(1, GetRemoteIpAddress().to_string());
+        logstmt->SetData(2, Acore::StringFormat("Login to WoW Failed - Incorrect {}", what));
+
+        LoginDatabase.Execute(logstmt);
+    }
+
+    if (MaxWrongPassCount > 0)
+    {
+        //Increment number of failed logins by one and if it reaches the limit temporarily ban that account or IP
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_FAILEDLOGINS);
+        stmt->SetData(0, _accountInfo.Login);
+        LoginDatabase.Execute(stmt);
+
+        if (++_accountInfo.FailedLogins >= MaxWrongPassCount)
+        {
+            uint32 WrongPassBanTime = sConfigMgr->GetOption<int32>("WrongPass.BanTime", 600);
+            bool WrongPassBanType = sConfigMgr->GetOption<bool>("WrongPass.BanType", false);
+
+            if (WrongPassBanType)
+            {
+                stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_ACCOUNT_AUTO_BANNED);
+                stmt->SetData(0, _accountInfo.Id);
+                stmt->SetData(1, WrongPassBanTime);
+                LoginDatabase.Execute(stmt);
+
+                LOG_DEBUG("server.authserver", "'{}:{}' [AuthChallenge] account {} got banned for '{}' seconds because it failed to authenticate '{}' times",
+                    GetRemoteIpAddress().to_string(), GetRemotePort(), _accountInfo.Login, WrongPassBanTime, _accountInfo.FailedLogins);
+            }
+            else
+            {
+                stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_IP_AUTO_BANNED);
+                stmt->SetData(0, GetRemoteIpAddress().to_string());
+                stmt->SetData(1, WrongPassBanTime);
+                LoginDatabase.Execute(stmt);
+
+                LOG_DEBUG("server.authserver", "'{}:{}' [AuthChallenge] IP got banned for '{}' seconds because account {} failed to authenticate '{}' times",
+                    GetRemoteIpAddress().to_string(), GetRemotePort(), WrongPassBanTime, _accountInfo.Login, _accountInfo.FailedLogins);
+            }
+        }
+    }
+}
+
 // Logon Proof command handler
 bool AuthSession::HandleLogonProof()
 {
@@ -529,6 +584,9 @@ bool AuthSession::HandleLogonProof()
             packet << uint8(WOW_FAIL_UNKNOWN_ACCOUNT);
             packet << uint16(0);    // LoginFlags, 1 has account message
             SendPacket(packet);
+
+            // a wrong token counts like a wrong password, otherwise the 6-digit code can be guessed without limit
+            HandleFailedLogin("Token");
             return true;
         }
 
@@ -595,56 +653,7 @@ bool AuthSession::HandleLogonProof()
         packet << uint16(0);    // LoginFlags, 1 has account message
         SendPacket(packet);
 
-        LOG_INFO("server.authserver.hack", "'{}:{}' [AuthChallenge] account {} tried to login with invalid password!",
-            GetRemoteIpAddress().to_string(), GetRemotePort(), _accountInfo.Login);
-
-        uint32 MaxWrongPassCount = sConfigMgr->GetOption<int32>("WrongPass.MaxCount", 0);
-
-        // We can not include the failed account login hook. However, this is a workaround to still log this.
-        if (sConfigMgr->GetOption<bool>("WrongPass.Logging", false))
-        {
-            LoginDatabasePreparedStatement* logstmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_FALP_IP_LOGGING);
-            logstmt->SetData(0, _accountInfo.Id);
-            logstmt->SetData(1, GetRemoteIpAddress().to_string());
-            logstmt->SetData(2, "Login to WoW Failed - Incorrect Password");
-
-            LoginDatabase.Execute(logstmt);
-        }
-
-        if (MaxWrongPassCount > 0)
-        {
-            //Increment number of failed logins by one and if it reaches the limit temporarily ban that account or IP
-            LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_FAILEDLOGINS);
-            stmt->SetData(0, _accountInfo.Login);
-            LoginDatabase.Execute(stmt);
-
-            if (++_accountInfo.FailedLogins >= MaxWrongPassCount)
-            {
-                uint32 WrongPassBanTime = sConfigMgr->GetOption<int32>("WrongPass.BanTime", 600);
-                bool WrongPassBanType = sConfigMgr->GetOption<bool>("WrongPass.BanType", false);
-
-                if (WrongPassBanType)
-                {
-                    stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_ACCOUNT_AUTO_BANNED);
-                    stmt->SetData(0, _accountInfo.Id);
-                    stmt->SetData(1, WrongPassBanTime);
-                    LoginDatabase.Execute(stmt);
-
-                    LOG_DEBUG("server.authserver", "'{}:{}' [AuthChallenge] account {} got banned for '{}' seconds because it failed to authenticate '{}' times",
-                        GetRemoteIpAddress().to_string(), GetRemotePort(), _accountInfo.Login, WrongPassBanTime, _accountInfo.FailedLogins);
-                }
-                else
-                {
-                    stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_IP_AUTO_BANNED);
-                    stmt->SetData(0, GetRemoteIpAddress().to_string());
-                    stmt->SetData(1, WrongPassBanTime);
-                    LoginDatabase.Execute(stmt);
-
-                    LOG_DEBUG("server.authserver", "'{}:{}' [AuthChallenge] IP got banned for '{}' seconds because account {} failed to authenticate '{}' times",
-                        GetRemoteIpAddress().to_string(), GetRemotePort(), WrongPassBanTime, _accountInfo.Login, _accountInfo.FailedLogins);
-                }
-            }
-        }
+        HandleFailedLogin("Password");
     }
 
     return true;

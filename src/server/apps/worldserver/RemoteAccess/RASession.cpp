@@ -96,7 +96,15 @@ int RASession::Send(std::string_view data)
 {
     std::ostream os(&_writeBuffer);
     os << data;
-    std::size_t written = _socket.send(_writeBuffer.data());
+    // Command output is sent from the world thread: a dropped connection must not throw there
+    boost::system::error_code error;
+    std::size_t written = _socket.send(_writeBuffer.data(), 0, error);
+    if (error)
+    {
+        _writeBuffer.consume(_writeBuffer.size());
+        return 0;
+    }
+
     _writeBuffer.consume(written);
     return written;
 }

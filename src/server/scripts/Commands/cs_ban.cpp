@@ -119,6 +119,11 @@ public:
             return false;
         }
 
+        // can ban only characters of accounts with less security
+        if (ObjectGuid guid = sCharacterCache->GetCharacterGuidByName(name))
+            if (handler->HasLowerSecurity(nullptr, guid, true))
+                return false;
+
         switch (sBan->BanCharacter(name, durationStr, reasonStr, handler->GetSession() ? handler->GetSession()->GetPlayerName() : ""))
         {
             case BAN_SUCCESS:
@@ -194,6 +199,20 @@ public:
                 if (!IsIPAddress(nameOrIP.c_str()))
                     return false;
                 break;
+        }
+
+        // can ban only accounts with less security, like kick and mute
+        if (mode == BAN_ACCOUNT)
+        {
+            if (uint32 accountId = AccountMgr::GetId(nameOrIP))
+                if (handler->HasLowerSecurityAccount(nullptr, accountId, true))
+                    return false;
+        }
+        else if (mode == BAN_CHARACTER)
+        {
+            if (ObjectGuid guid = sCharacterCache->GetCharacterGuidByName(nameOrIP))
+                if (handler->HasLowerSecurity(nullptr, guid, true))
+                    return false;
         }
 
         BanReturn banReturn;

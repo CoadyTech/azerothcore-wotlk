@@ -58,6 +58,9 @@ public:                                                 // constructors
     [[nodiscard]] bool IsAccepted() const { return _accepted; }
     void SetAccepted(bool state, bool forTrader = false);
 
+    // false if an offered item left the inventory or changed its stack size since it was shown to the trader
+    [[nodiscard]] bool AreItemsUnchanged() const;
+
     [[nodiscard]] bool IsInAcceptProcess() const { return m_acceptProccess; }
     void SetInAcceptProcess(bool state) { m_acceptProccess = state; }
 
@@ -77,6 +80,7 @@ private:                                                // fields
     ObjectGuid m_spellCastItem;                         // applied spell casted by item use
 
     ObjectGuid m_items[TRADE_SLOT_COUNT];               // traded itmes from m_player side including non-traded slot
+    uint32     m_itemCounts[TRADE_SLOT_COUNT] = { };    // stack sizes of m_items when they were placed
 };
 
 #endif
