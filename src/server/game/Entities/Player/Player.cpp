@@ -9402,7 +9402,7 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
         // only if current pet in slot
         pet->SavePetToDB(mode);
 
-        if (m_petStable->CurrentPet && m_petStable->CurrentPet->PetNumber == pet->GetCharmInfo()->GetPetNumber())
+        if (m_petStable && m_petStable->CurrentPet && m_petStable->CurrentPet->PetNumber == pet->GetCharmInfo()->GetPetNumber())
         {
             if (mode == PET_SAVE_NOT_IN_SLOT)
             {

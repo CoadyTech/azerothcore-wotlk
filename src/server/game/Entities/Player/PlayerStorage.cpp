@@ -5543,8 +5543,11 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     // apply original stats mods before spell loading or item equipment that call before equip _RemoveStatsMods()
 
-    m_specsCount = fields[64].Get<uint8>();
+    // both index m_Glyphs and the talent maps, so keep database values inside the arrays
+    m_specsCount = std::clamp<uint8>(fields[64].Get<uint8>(), 1, MAX_TALENT_SPECS);
     m_activeSpec = fields[65].Get<uint8>();
+    if (m_activeSpec >= m_specsCount)
+        m_activeSpec = 0;
 
     LearnDefaultSkills();
     LearnCustomSpells();

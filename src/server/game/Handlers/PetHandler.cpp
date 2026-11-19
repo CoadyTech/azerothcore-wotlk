@@ -937,6 +937,10 @@ void WorldSession::HandlePetAbandon(WorldPackets::Pet::PetAbandon& packet)
     Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, packet.PetGUID);
     if (pet && pet->ToPet() && pet->ToPet()->getPetType() == HUNTER_PET)
     {
+        // the guid comes from the client: only the owner may abandon a pet
+        if (pet->IsPet() && pet->GetOwnerGUID() != _player->GetGUID())
+            return;
+
         if (pet->IsPet())
         {
             if (pet->GetGUID() == _player->GetPetGUID())

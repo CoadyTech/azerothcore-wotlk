@@ -231,7 +231,7 @@ void TempSummon::InitStats(uint32 duration)
 
     if (owner)
     {
-        if (uint32 slot = m_Properties->Slot)
+        if (uint32 slot = m_Properties->Slot; slot && slot < MAX_SUMMON_SLOT)
         {
             if (owner->m_SummonSlot[slot] && owner->m_SummonSlot[slot] != GetGUID())
             {
@@ -334,7 +334,7 @@ void TempSummon::RemoveFromWorld()
         return;
 
     if (m_Properties)
-        if (uint32 slot = m_Properties->Slot)
+        if (uint32 slot = m_Properties->Slot; slot && slot < MAX_SUMMON_SLOT)
             if (Unit* owner = GetSummonerUnit())
                 if (owner->m_SummonSlot[slot] == GetGUID())
                     owner->m_SummonSlot[slot].Clear();

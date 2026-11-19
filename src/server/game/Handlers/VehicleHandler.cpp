@@ -101,6 +101,11 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket& recvData)
                 MovementInfo movementInfo;
                 movementInfo.guid = guid;
                 ReadMovementInfo(recvData, &movementInfo);
+
+                // ReadMovementInfo validated the flag against the player's mover, not against the vehicle it is stored on
+                if (!vehicle_base->movespline->Initialized() || vehicle_base->movespline->Finalized())
+                    movementInfo.RemoveMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED);
+
                 vehicle_base->m_movementInfo = movementInfo;
 
                 ObjectGuid accessory;        //  accessory guid
