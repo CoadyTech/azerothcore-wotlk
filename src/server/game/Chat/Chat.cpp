@@ -990,7 +990,8 @@ bool CliHandler::HasSession() const
 
 bool AddonChannelCommandHandler::ParseCommands(std::string_view str)
 {
-    if (memcmp(str.data(), "AzerothCore\t", 12))
+    // prefix (12) + opcode (1) + 4-character command counter
+    if (str.size() < 17 || memcmp(str.data(), "AzerothCore\t", 12))
         return false;
     char opcode = str[12];
     if (!opcode) // str[12] is opcode

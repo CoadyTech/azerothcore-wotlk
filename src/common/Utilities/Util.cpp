@@ -515,8 +515,8 @@ void vutf8printf(FILE* out, char const* str, va_list* ap)
     wchar_t wtemp_buf[32 * 1024];
 
     std::size_t temp_len = vsnprintf(temp_buf, 32 * 1024, str, *ap);
-    //vsnprintf returns -1 if the buffer is too small
-    if (temp_len == std::size_t(-1))
+    //vsnprintf returns -1 or the untruncated length if the buffer is too small
+    if (temp_len >= 32 * 1024)
     {
         temp_len = 32 * 1024 - 1;
     }
