@@ -681,9 +681,12 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
         return;
     }
 
+    // Copied because creating the guild or arena team below removes the owner's petitions from
+    // PetitionMgr, which frees this entry
     ObjectGuid ownerGuid = petition->ownerGuid;
     uint8 type = petition->petitionType;
     std::string name = petition->petitionName;
+    uint32 const petitionId = petition->petitionId;
 
     // Only the petition owner can turn in the petition
     if (_player->GetGUID() != ownerGuid)
@@ -815,11 +818,11 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PETITION_BY_ID);
-    stmt->SetData(0, petition->petitionId);
+    stmt->SetData(0, petitionId);
     trans->Append(stmt);
 
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PETITION_SIGNATURE_BY_ID);
-    stmt->SetData(0, petition->petitionId);
+    stmt->SetData(0, petitionId);
     trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
