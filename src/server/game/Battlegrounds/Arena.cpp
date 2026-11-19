@@ -324,7 +324,9 @@ void Arena::EndBattleground(TeamId winnerTeamId)
             }
         }
 
-        SaveArenaLogs();
+        // either team can have been disbanded while the match was running
+        if (winnerArenaTeam && loserArenaTeam)
+            SaveArenaLogs();
 
         uint8 aliveWinners = GetAlivePlayersCountByTeam(winnerTeamId);
 

@@ -579,8 +579,11 @@ void WorldSession::HandleUnstablePet(WorldPacket& recvData)
     {
         delete newPet;
 
-        petStable->UnslottedPets.push_back(std::move(*petStable->CurrentPet));
-        petStable->CurrentPet.reset();
+        if (petStable->CurrentPet)
+        {
+            petStable->UnslottedPets.push_back(std::move(*petStable->CurrentPet));
+            petStable->CurrentPet.reset();
+        }
 
         // update current pet slot in db immediately to maintain slot consistency, dismissed pet was already saved
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_PET_SLOT_BY_ID);
@@ -733,8 +736,11 @@ void WorldSession::HandleStableSwapPet(WorldPacket& recvData)
         delete newPet;
         SendStableResult(STABLE_ERR_STABLE);
 
-        petStable->UnslottedPets.push_back(std::move(*petStable->CurrentPet));
-        petStable->CurrentPet.reset();
+        if (petStable->CurrentPet)
+        {
+            petStable->UnslottedPets.push_back(std::move(*petStable->CurrentPet));
+            petStable->CurrentPet.reset();
+        }
 
         // update current pet slot in db immediately to maintain slot consistency, dismissed pet was already saved
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_PET_SLOT_BY_ID);

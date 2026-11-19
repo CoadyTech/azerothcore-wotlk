@@ -100,7 +100,11 @@ namespace WorldPackets
         template<std::size_t... indexes>
         bool ValidateNth(std::index_sequence<indexes...>) const
         {
-            return (std::tuple_element_t<indexes, ValidatorList>::Validate(_storage) && ...);
+            // Run every validator: the ones that reject bad UTF-8 or hyperlinks throw, and must
+            // not be skipped just because the size check before them failed
+            bool valid = true;
+            ((valid &= std::tuple_element_t<indexes, ValidatorList>::Validate(_storage)), ...);
+            return valid;
         }
 
         std::string _storage;

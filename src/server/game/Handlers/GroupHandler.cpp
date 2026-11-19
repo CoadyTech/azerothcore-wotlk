@@ -814,6 +814,17 @@ void WorldSession::HandleRaidReadyCheckFinishedOpcode(WorldPacket& /*recvData*/)
     group->BroadcastPacket(&data, true, -1);
 }
 
+// transport.seat is taken from client movement packets, so it cannot be trusted as an index
+static uint32 GetPartyMemberVehicleSeatId(Player const* player)
+{
+    Vehicle const* vehicle = player->GetVehicle();
+    int8 const seat = player->m_movementInfo.transport.seat;
+    if (!vehicle || seat < 0 || seat >= MAX_VEHICLE_SEATS)
+        return 0;
+
+    return vehicle->GetVehicleInfo()->m_seatID[seat];
+}
+
 void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data)
 {
     uint32 mask = player->GetGroupUpdateFlag();
@@ -992,10 +1003,7 @@ void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacke
 
     if (mask & GROUP_UPDATE_FLAG_VEHICLE_SEAT)
     {
-        if (Vehicle* veh = player->GetVehicle())
-            * data << uint32(veh->GetVehicleInfo()->m_seatID[player->m_movementInfo.transport.seat]);
-        else
-            *data << uint32(0);
+        *data << uint32(GetPartyMemberVehicleSeatId(player));
     }
 }
 
@@ -1129,7 +1137,7 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recvData)
     data.put<uint64>(maskPos, petAuraMask);                 // GROUP_UPDATE_FLAG_PET_AURAS
 
     if (updateFlags & GROUP_UPDATE_FLAG_VEHICLE_SEAT)
-        data << uint32(player->GetVehicle()->GetVehicleInfo()->m_seatID[player->m_movementInfo.transport.seat]);
+        data << uint32(GetPartyMemberVehicleSeatId(player));
 
     SendPacket(&data);
 }
