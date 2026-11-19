@@ -15765,11 +15765,12 @@ void Player::ActivateSpec(uint8 spec)
 
         WorldSession* mySess = GetSession();
         mySess->GetQueryProcessor().AddCallback(CharacterDatabase.AsyncQuery(stmt)
-        .WithPreparedCallback([mySess](PreparedQueryResult result)
+        .WithPreparedCallback([mySess, playerGuid = GetGUID()](PreparedQueryResult result)
         {
             // safe callback, we can't pass this pointer directly
             // in case player logs out before db response (player would be deleted in that case)
-            if (Player* thisPlayer = mySess->GetPlayer())
+            // and the session may be playing another character by then
+            if (Player* thisPlayer = mySess->GetPlayer(); thisPlayer && thisPlayer->GetGUID() == playerGuid)
                 thisPlayer->LoadActions(result);
         }));
     }

@@ -212,6 +212,8 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recvData)
         }
         if (!group->AddInvite(invitedPlayer))
         {
+            // the leader invite above made the inviter point at this group
+            group->RemoveAllInvites();
             delete group;
             return;
         }
