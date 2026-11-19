@@ -452,6 +452,10 @@ public:
             return false;
         }
 
+        /// can remove the lock only for target with less security
+        if (handler->HasLowerSecurityAccount(nullptr, accountId, true))
+            return false;
+
         auto* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_ACCOUNT_LOCK_COUNTRY);
         stmt->SetData(0, "00");
         stmt->SetData(1, accountId);
@@ -1225,6 +1229,10 @@ public:
             handler->SendErrorMessage(LANG_ACCOUNT_NOT_EXIST, accountName);
             return false;
         }
+
+        /// can set email only for target with less security
+        if (handler->HasLowerSecurityAccount(nullptr, targetAccountId, true))
+            return false;
 
         if (email != emailConfirmation)
         {

@@ -259,18 +259,20 @@ void utf8truncate(std::string& utf8str, std::size_t len)
 {
     try
     {
-        std::size_t wlen = utf8::distance(utf8str.c_str(), utf8str.c_str() + utf8str.size());
-        if (wlen <= len)
+        // Cut after len code points without converting: a UTF-16 round trip needs two units for
+        // every character outside the BMP, which a buffer sized in code points cannot hold
+        auto itr = utf8str.begin();
+        auto const end = utf8str.end();
+        for (std::size_t count = 0; itr != end; ++count)
         {
-            return;
-        }
+            if (count == len)
+            {
+                utf8str.erase(itr, end);
+                return;
+            }
 
-        std::wstring wstr;
-        wstr.resize(wlen);
-        utf8::utf8to16(utf8str.c_str(), utf8str.c_str() + utf8str.size(), &wstr[0]);
-        wstr.resize(len);
-        char* oend = utf8::utf16to8(wstr.c_str(), wstr.c_str() + wstr.size(), &utf8str[0]);
-        utf8str.resize(oend - (&utf8str[0]));               // remove unused tail
+            utf8::next(itr, end);
+        }
     }
     catch (std::exception const&)
     {

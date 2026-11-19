@@ -804,6 +804,7 @@ public:                                                 // opcodes handlers
     void HandleMoveWorldportAck(); // for server-side calls
 
     void HandleMovementOpcodes(WorldPacket& recvPacket);
+    void HandleEmbeddedMovementOpcode(WorldPacket& recvPacket);
     void HandleSetActiveMoverOpcode(WorldPacket& recvData);
     void HandleMoveNotActiveMover(WorldPacket& recvData);
     void HandleDismissControlledVehicle(WorldPacket& recvData);

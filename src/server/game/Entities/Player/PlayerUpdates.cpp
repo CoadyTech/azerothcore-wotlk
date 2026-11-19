@@ -2431,10 +2431,13 @@ void Player::ExecuteOrCancelSpellCastRequest(PendingSpellCastRequest* request, b
 
     if (WorldSession* session = GetSession())
     {
+        // The handler can clear SpellQueue (e.g. the embedded movement kills the player), which
+        // destroys the request, so it must not keep working on the queued packet itself
+        WorldPacket packet(request->requestPacket);
         if (request->isItem)
-            session->HandleUseItemOpcode(request->requestPacket);
+            session->HandleUseItemOpcode(packet);
         else
-            session->HandleCastSpellOpcode(request->requestPacket);
+            session->HandleCastSpellOpcode(packet);
     }
 }
 

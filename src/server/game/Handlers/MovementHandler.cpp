@@ -413,6 +413,52 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recvData)
     mover->SendMessageToSet(&data, _player);
 }
 
+void WorldSession::HandleEmbeddedMovementOpcode(WorldPacket& recvPacket)
+{
+    uint32 opcode = recvPacket.read<uint32>();
+
+    // The opcode is relayed to nearby clients, so only accept the ones HandleMovementOpcodes is registered for
+    switch (opcode)
+    {
+        case MSG_MOVE_START_FORWARD:
+        case MSG_MOVE_START_BACKWARD:
+        case MSG_MOVE_STOP:
+        case MSG_MOVE_START_STRAFE_LEFT:
+        case MSG_MOVE_START_STRAFE_RIGHT:
+        case MSG_MOVE_STOP_STRAFE:
+        case MSG_MOVE_JUMP:
+        case MSG_MOVE_START_TURN_LEFT:
+        case MSG_MOVE_START_TURN_RIGHT:
+        case MSG_MOVE_STOP_TURN:
+        case MSG_MOVE_START_PITCH_UP:
+        case MSG_MOVE_START_PITCH_DOWN:
+        case MSG_MOVE_STOP_PITCH:
+        case MSG_MOVE_SET_RUN_MODE:
+        case MSG_MOVE_SET_WALK_MODE:
+        case MSG_MOVE_FALL_LAND:
+        case MSG_MOVE_START_SWIM:
+        case MSG_MOVE_STOP_SWIM:
+        case MSG_MOVE_SET_FACING:
+        case MSG_MOVE_SET_PITCH:
+        case MSG_MOVE_HEARTBEAT:
+        case CMSG_MOVE_FALL_RESET:
+        case CMSG_MOVE_SET_FLY:
+        case MSG_MOVE_START_ASCEND:
+        case MSG_MOVE_STOP_ASCEND:
+        case CMSG_MOVE_CHNG_TRANSPORT:
+        case MSG_MOVE_START_DESCEND:
+            break;
+        default:
+            LOG_ERROR("network.opcode", "WorldSession::HandleEmbeddedMovementOpcode: {} sent a non-movement opcode ({}) inside a cast packet",
+                GetPlayerInfo(), opcode);
+            recvPacket.rfinish();
+            return;
+    }
+
+    recvPacket.SetOpcode(opcode);
+    HandleMovementOpcodes(recvPacket);
+}
+
 void WorldSession::SynchronizeMovement(MovementInfo& movementInfo)
 {
     int64 movementTime = (int64)movementInfo.time + _timeSyncClockDelta;

@@ -1757,10 +1757,5 @@ void WorldSession::HandleUpdateMissileTrajectory(WorldPacket& recvPacket)
     spell->m_targets.SetSpeed(speed);
 
     if (moveStop)
-    {
-        uint32 opcode;
-        recvPacket >> opcode;
-        recvPacket.SetOpcode(opcode);
-        HandleMovementOpcodes(recvPacket);
-    }
+        HandleEmbeddedMovementOpcode(recvPacket);
 }
