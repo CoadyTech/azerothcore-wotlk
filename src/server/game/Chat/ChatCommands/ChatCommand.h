@@ -255,6 +255,9 @@ namespace Acore::ChatCommands
     AC_GAME_API bool TryExecuteCommand(ChatHandler& handler, std::string_view cmd);
     AC_GAME_API void SendCommandHelpFor(ChatHandler& handler, std::string_view cmd);
     AC_GAME_API std::vector<std::string> GetAutoCompletionsFor(ChatHandler const& handler, std::string_view cmd);
+
+    // Returns cmd with passwords and 2FA secrets of account commands removed, for use in logs
+    AC_GAME_API std::string RedactSensitiveCommand(std::string_view cmd);
 }
 
 // backwards compatibility with old patches

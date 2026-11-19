@@ -153,6 +153,46 @@ void Acore::Impl::ChatCommands::ChatCommandNode::ResolveNames(std::string name)
     }
 }
 
+std::string Acore::ChatCommands::RedactSensitiveCommand(std::string_view cmd)
+{
+    // Subcommands can be abbreviated, so every token is matched as a prefix. Hiding the arguments
+    // of a command that turns out not to be one of these only costs log detail.
+    auto isPrefixOf = [](std::string_view token, std::string_view name)
+    {
+        return !token.empty() && token.length() <= name.length() && StringEqualI(token, name.substr(0, token.length()));
+    };
+
+    std::string_view trimmed = cmd;
+    while (!trimmed.empty() && (trimmed.front() == '.' || trimmed.front() == '!' || trimmed.front() == ' '))
+        trimmed.remove_prefix(1);
+
+    std::vector<std::string_view> const tokens = Acore::Tokenize(trimmed, Acore::Impl::ChatCommands::COMMAND_DELIMITER, false);
+    if (tokens.size() < 2 || !isPrefixOf(tokens[0], "account"))
+        return std::string(cmd);
+
+    // number of leading tokens that are safe to log: the command path and, where there is one, the account name
+    std::size_t keep = 0;
+    if (isPrefixOf(tokens[1], "create"))
+        keep = 3;
+    else if (isPrefixOf(tokens[1], "password") || isPrefixOf(tokens[1], "2fa"))
+        keep = 2;
+    else if (isPrefixOf(tokens[1], "set") && tokens.size() > 2 && (isPrefixOf(tokens[2], "password") || isPrefixOf(tokens[2], "2fa")))
+        keep = 4;
+
+    if (!keep || tokens.size() <= keep)
+        return std::string(cmd);
+
+    std::string redacted;
+    for (std::size_t i = 0; i < keep; ++i)
+    {
+        redacted.append(tokens[i]);
+        redacted.push_back(Acore::Impl::ChatCommands::COMMAND_DELIMITER);
+    }
+
+    redacted.append("<redacted>");
+    return redacted;
+}
+
 static void LogCommandUsage(WorldSession const& session, std::string_view cmdStr)
 {
     if (AccountMgr::IsPlayerAccount(session.GetSecurity()))
@@ -177,7 +217,7 @@ static void LogCommandUsage(WorldSession const& session, std::string_view cmdStr
     }
 
     std::string logMessage = Acore::StringFormat("Command: {} [Player: {} ({}) (Account: {}) X: {} Y: {} Z: {} Map: {} ({}) Area: {} ({}) Zone: {} ({}) Selected: {} ({})]",
-        cmdStr, player->GetName(), player->GetGUID().ToString(),
+        Acore::ChatCommands::RedactSensitiveCommand(cmdStr), player->GetName(), player->GetGUID().ToString(),
         session.GetAccountId(),
         player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(),
         player->FindMap() ? player->FindMap()->GetMapName() : "Unknown",
@@ -185,7 +225,7 @@ static void LogCommandUsage(WorldSession const& session, std::string_view cmdStr
         (player->GetSelectedUnit()) ? player->GetSelectedUnit()->GetName() : "",
         targetGuid.ToString());
 
-    LOG_GM(session.GetAccountId(), logMessage);
+    LOG_GM(session.GetAccountId(), "{}", logMessage);
 }
 
 void Acore::Impl::ChatCommands::ChatCommandNode::SendCommandHelp(ChatHandler& handler) const

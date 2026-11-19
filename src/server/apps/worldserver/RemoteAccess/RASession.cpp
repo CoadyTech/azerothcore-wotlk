@@ -17,6 +17,7 @@
 
 #include "RASession.h"
 #include "AccountMgr.h"
+#include "ChatCommand.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "Duration.h"
@@ -184,7 +185,7 @@ bool RASession::ProcessCommand(std::string& command)
     if (command.length() == 0)
         return true;
 
-    LOG_INFO("commands.ra", "Received command: {}", command);
+    LOG_INFO("commands.ra", "Received command: {}", Acore::ChatCommands::RedactSensitiveCommand(command));
 
     // handle quit, exit and logout commands to terminate connection
     if (command == "quit" || command == "exit" || command == "logout")

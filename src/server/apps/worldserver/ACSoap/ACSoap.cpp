@@ -17,6 +17,7 @@
 
 #include "ACSoap.h"
 #include "AccountMgr.h"
+#include "ChatCommand.h"
 #include "Log.h"
 #include "World.h"
 #include "soapStub.h"
@@ -109,7 +110,7 @@ int ns1__executeCommand(soap* soap, char* command, char** result)
     if (!command || !*command)
         return soap_sender_fault(soap, "Command can not be empty", "The supplied command was an empty string");
 
-    LOG_DEBUG("network.soap", "ACSoap: got command '{}'", command);
+    LOG_DEBUG("network.soap", "ACSoap: got command '{}'", Acore::ChatCommands::RedactSensitiveCommand(command));
 
     // Shared so the object survives if we stop waiting below: the queued command keeps a raw
     // pointer to it and the world thread may still run it after that. The extra reference is

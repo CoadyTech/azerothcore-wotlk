@@ -18,6 +18,7 @@
 #include "DBUpdater.h"
 #include "BuiltInConfig.h"
 #include "Config.h"
+#include "CryptoRandom.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
 #include "DatabaseWorkerPoolAdapter.h"
@@ -25,10 +26,18 @@
 #include "StartProcess.h"
 #include "UpdateFetcher.h"
 #include "QueryResult.h"
+#include "StringFormat.h"
+#include "Util.h"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <vector>
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
 {
@@ -511,18 +520,37 @@ void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string co
 
     tempDir = Acore::String::AddSuffixIfNotExists(tempDir, std::filesystem::path::preferred_separator);
 
-    std::string confFileName = "mysql_ac.conf";
+    // This file holds the database password: give it an unpredictable name, make it readable by
+    // the server user only and delete it as soon as the client has run
+    std::string const confFile = tempDir + Acore::StringFormat("mysql_ac_{}.conf",
+        ByteArrayToHexStr(Acore::Crypto::GetRandomBytes<16>()));
+    std::string const confContent = "[client]\npassword = \"" + password + "\"\n";
 
-    std::ofstream outfile (tempDir + confFileName);
+    bool confWritten = false;
 
-    outfile << "[client]\npassword = \"" << password << '"' << std::endl;
+#ifndef _WIN32
+    int const confFd = open(confFile.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, S_IRUSR | S_IWUSR);
+    if (confFd >= 0)
+    {
+        confWritten = write(confFd, confContent.data(), confContent.size()) == ssize_t(confContent.size());
+        close(confFd);
+    }
+#else
+    {
+        std::ofstream outfile(confFile);
+        outfile << confContent;
+        outfile.close();
+        confWritten = !outfile.fail();
+    }
+#endif
 
-    outfile.close();
+    if (!confWritten)
+        LOG_ERROR("sql.updates", "Could not write the temporary MySQL client configuration file '{}'", confFile);
 
     std::vector<std::string> args;
     args.reserve(9);
 
-    args.emplace_back("--defaults-extra-file="+tempDir + confFileName+"");
+    args.emplace_back("--defaults-extra-file=" + confFile);
 
     // CLI Client connection info
     args.emplace_back("-u" + user);
@@ -571,6 +599,9 @@ void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string co
     // Invokes a mysql process which doesn't leak credentials to logs
     int const ret = Acore::StartProcess(DBUpdaterUtil::GetCorrectedMySQLExecutable(), args,
         "sql.updates", path.generic_string(), true);
+
+    std::error_code removeError;
+    std::filesystem::remove(confFile, removeError);
 
     if (ret != EXIT_SUCCESS)
     {
