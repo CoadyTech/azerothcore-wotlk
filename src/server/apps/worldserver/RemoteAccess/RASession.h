@@ -28,7 +28,7 @@ class RASession : public std::enable_shared_from_this<RASession>
 {
 public:
     RASession(IoContextTcpSocket&& socket) :
-        _socket(std::move(socket)), _commandExecuting(nullptr) { }
+        _socket(std::move(socket)), _readBuffer(MAX_LINE_LENGTH), _commandExecuting(nullptr) { }
 
     void Start();
 
@@ -36,6 +36,9 @@ public:
     unsigned short GetRemotePort() const { return _socket.remote_endpoint().port(); }
 
 private:
+    // Longest line (login or command) accepted from a client; read_until fails once it is exceeded
+    static constexpr std::size_t MAX_LINE_LENGTH = 8192;
+
     int Send(std::string_view data);
     std::string ReadString();
     bool CheckAccessLevel(std::string const& user);

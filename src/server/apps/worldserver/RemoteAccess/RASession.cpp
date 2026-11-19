@@ -114,8 +114,8 @@ std::string RASession::ReadString()
     std::istream is(&_readBuffer);
     std::getline(is, line);
 
-    if (*line.rbegin() == '\r')
-        line.erase(line.length() - 1);
+    if (!line.empty() && line.back() == '\r')
+        line.pop_back();
 
     return line;
 }

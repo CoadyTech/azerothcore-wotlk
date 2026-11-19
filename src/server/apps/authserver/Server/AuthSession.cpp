@@ -258,6 +258,21 @@ SocketReadCallbackResult AuthSession::ReadHandler()
         if (packet.GetActiveSize() < size)
             break;
 
+        // The TOTP token is appended to the proof; wait until all of it has arrived
+        if (cmd == AUTH_LOGON_PROOF && _totpSecret)
+        {
+            sAuthLogonProof_C* proof = reinterpret_cast<sAuthLogonProof_C*>(packet.GetReadPointer());
+            if (proof->securityFlags & 0x04)
+            {
+                std::size_t tokenSize = sizeof(uint8);
+                if (packet.GetActiveSize() >= size + tokenSize)
+                    tokenSize += packet.GetReadPointer()[size];
+
+                if (packet.GetActiveSize() < size + tokenSize)
+                    break;
+            }
+        }
+
         if (!(*this.*itr->second.handler)())
         {
             CloseSocket();
@@ -486,12 +501,22 @@ bool AuthSession::HandleLogonProof()
         bool sentToken = (logonProof->securityFlags & 0x04);
         if (sentToken && _totpSecret)
         {
-            uint8 size = *(GetReadBuffer().GetReadPointer() + sizeof(sAuthLogonProof_C));
-            std::string token(reinterpret_cast<char*>(GetReadBuffer().GetReadPointer() + sizeof(sAuthLogonProof_C) + sizeof(size)), size);
-            GetReadBuffer().ReadCompleted(sizeof(size) + size);
+            // The token follows the fixed-size proof and is not covered by the size check in ReadHandler
+            MessageBuffer& buffer = GetReadBuffer();
+            std::size_t const available = buffer.GetActiveSize() - sizeof(sAuthLogonProof_C);
+            if (available < sizeof(uint8))
+                return false;
 
-            uint32 incomingToken = *Acore::StringTo<uint32>(token);
-            tokenSuccess = Acore::Crypto::TOTP::ValidateToken(*_totpSecret, incomingToken);
+            uint8 size = *(buffer.GetReadPointer() + sizeof(sAuthLogonProof_C));
+            if (available < sizeof(size) + size)
+                return false;
+
+            std::string token(reinterpret_cast<char*>(buffer.GetReadPointer() + sizeof(sAuthLogonProof_C) + sizeof(size)), size);
+            buffer.ReadCompleted(sizeof(size) + size);
+
+            if (Optional<uint32> incomingToken = Acore::StringTo<uint32>(token))
+                tokenSuccess = Acore::Crypto::TOTP::ValidateToken(*_totpSecret, *incomingToken);
+
             memset(_totpSecret->data(), 0, _totpSecret->size());
         }
         else if (!sentToken && !_totpSecret)

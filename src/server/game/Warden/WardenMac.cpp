@@ -150,6 +150,14 @@ void WardenMac::HandleHashResult(ByteBuffer& buff)
 
     buff.rpos(buff.wpos());
 
+    // opcode byte followed by the SHA1 of the client key seed
+    if (buff.size() < 1 + Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES)
+    {
+        LOG_DEBUG("warden", "Request hash reply: truncated");
+        ApplyPenalty(0, "Request hash reply: failed");
+        return;
+    }
+
     Acore::Crypto::SHA1 sha1;
     sha1.UpdateData((uint8*)keyIn, 16);
     sha1.Finalize();

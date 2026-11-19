@@ -232,6 +232,14 @@ void WardenWin::HandleHashResult(ByteBuffer& buff)
 {
     buff.rpos(buff.wpos());
 
+    // opcode byte followed by the SHA1 of the client key seed
+    if (buff.size() < 1 + Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES)
+    {
+        LOG_DEBUG("warden", "Request hash reply: truncated");
+        ApplyPenalty(0, "Request hash reply: failed");
+        return;
+    }
+
     // Verify key using constant-time comparison
     if (CRYPTO_memcmp(buff.contents() + 1, Module.ClientKeySeedHash, Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES) != 0)
     {
@@ -643,8 +651,15 @@ void WardenWin::HandleData(ByteBuffer& buff)
 
     uint16 checkFailed = 0;
 
+    // The fixed-size results below are compared in place, so make sure the client really sent them
+    bool truncated = false;
+    auto hasBytes = [&buff](std::size_t bytes) { return buff.rpos() + bytes <= buff.size(); };
+
     for (uint16 const checkId : _CurrentChecks)
     {
+        if (truncated)
+            break;
+
         WardenCheck const* rd = sWardenCheckMgr->GetWardenDataById(checkId);
 
         // Custom payload should be loaded in if equal to over offset.
@@ -669,6 +684,12 @@ void WardenWin::HandleData(ByteBuffer& buff)
             }
 
             std::vector<uint8> const expected = GetExpectedResult(*rd);
+            if (!hasBytes(rd->Length) || expected.size() < rd->Length)
+            {
+                truncated = true;
+                break;
+            }
+
             if (CRYPTO_memcmp(buff.contents() + buff.rpos(), expected.data(), rd->Length) != 0)
             {
                 LOG_DEBUG("warden", "RESULT MEM_CHECK fail CheckId {} account Id {} locale {}", checkId,
@@ -687,6 +708,12 @@ void WardenWin::HandleData(ByteBuffer& buff)
         case DRIVER_CHECK:
         case MODULE_CHECK:
         {
+            if (!hasBytes(sizeof(uint8)))
+            {
+                truncated = true;
+                break;
+            }
+
             uint8 const byte = 0xE9;
             if (CRYPTO_memcmp(buff.contents() + buff.rpos(), &byte, sizeof(uint8)) != 0)
             {
@@ -751,6 +778,13 @@ void WardenWin::HandleData(ByteBuffer& buff)
             }
 
             std::vector<uint8> const expected = GetExpectedResult(*rd);
+            if (!hasBytes(Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES) ||
+                expected.size() < Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES)
+            {
+                truncated = true;
+                break;
+            }
+
             if (CRYPTO_memcmp(buff.contents() + buff.rpos(), expected.data(),
                 Acore::Crypto::Constants::SHA1_DIGEST_LENGTH_BYTES) != 0)
             {
@@ -768,7 +802,16 @@ void WardenWin::HandleData(ByteBuffer& buff)
         }
     }
 
-    if (checkFailed > 0 && !_interrupted)
+    if (truncated)
+    {
+        buff.rfinish();
+
+        if (!_interrupted)
+        {
+            ApplyPenalty(0, "Truncated response in HandleData");
+        }
+    }
+    else if (checkFailed > 0 && !_interrupted)
     {
         ApplyPenalty(checkFailed, "");
     }

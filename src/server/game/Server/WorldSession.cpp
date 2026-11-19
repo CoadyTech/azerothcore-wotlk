@@ -1248,6 +1248,9 @@ void WorldSession::WriteMovementInfo(WorldPacket* data, MovementInfo* mi)
         *data << mi->splineElevation;
 }
 
+// The 3.3.5a client only reports its built-in addons here, far fewer than this
+constexpr uint32 MAX_CLIENT_ADDONS = 256;
+
 void WorldSession::ReadAddonsInfo(ByteBuffer& data)
 {
     if (data.rpos() + 4 > data.size())
@@ -1274,10 +1277,20 @@ void WorldSession::ReadAddonsInfo(ByteBuffer& data)
 
     if (uncompress(addonInfo.contents(), &uSize, data.contents() + pos, data.size() - pos) == Z_OK)
     {
+        // Drop the unused tail so it is not parsed as addon entries
+        addonInfo.resize(uSize);
+
         try
         {
             uint32 addonsCount;
             addonInfo >> addonsCount;                         // addons count
+
+            // Unknown addons are stored in the database and kept in memory until restart
+            if (addonsCount > MAX_CLIENT_ADDONS)
+            {
+                LOG_ERROR("network", "WorldSession::ReadAddonsInfo too many addons ({}) sent by {}", addonsCount, GetPlayerInfo());
+                return;
+            }
 
             for (uint32 i = 0; i < addonsCount; ++i)
             {

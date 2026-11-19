@@ -34,14 +34,21 @@ public:
 
     [[nodiscard]] bool IsTaximaskNodeKnown(uint32 nodeidx) const
     {
-        uint8  field   = uint8((nodeidx - 1) / 32);
+        // nodeidx can come straight from a client packet
+        uint32 field   = (nodeidx - 1) / 32;
+        if (field >= TaxiMaskSize)
+            return false;
+
         uint32 submask = 1 << ((nodeidx - 1) % 32);
         return (m_taximask[field] & submask) == submask;
     }
 
     bool SetTaximaskNode(uint32 nodeidx)
     {
-        uint8  field   = uint8((nodeidx - 1) / 32);
+        uint32 field   = (nodeidx - 1) / 32;
+        if (field >= TaxiMaskSize)
+            return false;
+
         uint32 submask = 1 << ((nodeidx - 1) % 32);
         if ((m_taximask[field] & submask) != submask)
         {
