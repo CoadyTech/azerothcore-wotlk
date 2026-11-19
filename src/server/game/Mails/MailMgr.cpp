@@ -126,7 +126,8 @@ void MailMgr::ReturnOrDeleteOldMails(bool serverUp)
 
         Player* player = nullptr;
         if (serverUp)
-            player = ObjectAccessor::FindPlayerByLowGUID(m->receiver);
+            // also matches a receiver on a loading screen, who still holds this mail in memory
+            player = ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(m->receiver));
 
         if (player) // don't modify mails of a logged in player
         {

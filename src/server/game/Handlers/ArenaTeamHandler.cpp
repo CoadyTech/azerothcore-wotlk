@@ -217,6 +217,10 @@ void WorldSession::HandleArenaTeamLeaveOpcode(WorldPacket& recvData)
     if (!arenaTeam)
         return;
 
+    // the team id comes from the client
+    if (!arenaTeam->IsMember(_player->GetGUID()))
+        return;
+
     // Disallow leave team while in arena
     if (arenaTeam->IsFighting())
     {

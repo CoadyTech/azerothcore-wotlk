@@ -215,6 +215,10 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                     playersNear.push_back(member);
             }
 
+            // nobody is in reward range while the looter has a pending instance bind
+            if (playersNear.empty())
+                return;
+
             uint32 goldPerPlayer = uint32((loot->gold) / (playersNear.size()));
 
             for (std::vector<Player*>::const_iterator i = playersNear.begin(); i != playersNear.end(); ++i)

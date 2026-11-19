@@ -139,7 +139,7 @@ void BattlegroundMgr::Update(uint32 diff)
             std::swap(scheduled, m_QueueUpdateScheduler);
         }
 
-        for (uint8 i = 0; i < scheduled.size(); i++)
+        for (std::size_t i = 0; i < scheduled.size(); i++)
         {
             uint32 arenaMMRating = scheduled[i] >> 32;
             uint8 arenaType = scheduled[i] >> 24 & 255;
