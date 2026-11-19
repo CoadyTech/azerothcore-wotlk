@@ -4,6 +4,10 @@
 
 void MapGridManager::CreateGrid(uint16 const x, uint16 const y)
 {
+    // Coordinates computed from an out-of-map position can exceed the grid array
+    if (!MapGridManager::IsValidGridCoordinates(x, y))
+        return;
+
     std::lock_guard<std::mutex> guard(_gridLock);
     if (IsGridCreated(x, y))
         return;

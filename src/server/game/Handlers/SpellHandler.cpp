@@ -852,8 +852,12 @@ void WorldSession::HandleUpdateProjectilePosition(WorldPacket& recvPacket)
     recvPacket >> y;
     recvPacket >> z;
 
+    if (!Acore::IsValidMapCoord(x, y, z))
+        return;
+
+    // only for spells cast by the player or by a unit the player controls
     Unit* caster = ObjectAccessor::GetUnit(*_player, casterGuid);
-    if (!caster)
+    if (!caster || caster->GetCharmerOrOwnerPlayerOrPlayerItself() != _player)
         return;
 
     Spell* spell = caster->FindCurrentSpellBySpellId(spellId);

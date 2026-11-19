@@ -590,12 +590,14 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
         }
     }
 
-    ProcessQueryCallbacks();
-
     //check if we are safe to proceed with logout
     //logout procedure should happen only in World::UpdateSessions() method!!!
     if (updater.ProcessUnsafe())
     {
+        // Query callbacks touch global state (character cache, name stores, ...), so they must not
+        // run from a map update thread
+        ProcessQueryCallbacks();
+
         sScriptMgr->OnSessionUpdate(this, diff);
 
         if (m_Socket && m_Socket->IsOpen() && _warden)
@@ -1205,7 +1207,7 @@ void WorldSession::ReadMovementInfo(WorldPacket& data, MovementInfo* mi)
         MOVEMENTFLAG_FALLING);
 
     REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED) &&
-        (!GetPlayer()->movespline->Initialized() || GetPlayer()->movespline->Finalized()), MOVEMENTFLAG_SPLINE_ENABLED);
+        (!GetPlayer()->m_mover->movespline->Initialized() || GetPlayer()->m_mover->movespline->Finalized()), MOVEMENTFLAG_SPLINE_ENABLED);
 
 #undef REMOVE_VIOLATING_FLAGS
 }

@@ -134,7 +134,10 @@ void BattlegroundMgr::Update(uint32 diff)
     if (!m_QueueUpdateScheduler.empty())
     {
         std::vector<uint64> scheduled;
-        std::swap(scheduled, m_QueueUpdateScheduler);
+        {
+            std::lock_guard<std::mutex> guard(_queueUpdateLock);
+            std::swap(scheduled, m_QueueUpdateScheduler);
+        }
 
         for (uint8 i = 0; i < scheduled.size(); i++)
         {
@@ -771,7 +774,8 @@ void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
 
 void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)
 {
-    //This method must be atomic, @todo add mutex
+    std::lock_guard<std::mutex> guard(_queueUpdateLock);
+
     //we will use only 1 number created of bgTypeId and bracket_id
     uint64 const scheduleId = ((uint64)arenaMatchmakerRating << 32) | ((uint64)arenaType << 24) | ((uint64)bgQueueTypeId << 16) | ((uint64)bgTypeId << 8) | (uint64)bracket_id;
     if (std::find(m_QueueUpdateScheduler.begin(), m_QueueUpdateScheduler.end(), scheduleId) == m_QueueUpdateScheduler.end())
@@ -948,11 +952,13 @@ BGFreeSlotQueueContainer& BattlegroundMgr::GetBGFreeSlotQueueStore(BattlegroundT
 
 void BattlegroundMgr::AddToBGFreeSlotQueue(BattlegroundTypeId bgTypeId, Battleground* bg)
 {
+    std::lock_guard<std::mutex> guard(_freeSlotQueueLock);
     bgDataStore[bgTypeId].BGFreeSlotQueue.push_back(bg);
 }
 
 void BattlegroundMgr::RemoveFromBGFreeSlotQueue(BattlegroundTypeId bgTypeId, uint32 instanceId)
 {
+    std::lock_guard<std::mutex> guard(_freeSlotQueueLock);
     BGFreeSlotQueueContainer& queues = bgDataStore[bgTypeId].BGFreeSlotQueue;
     for (BGFreeSlotQueueContainer::iterator itr = queues.begin(); itr != queues.end(); ++itr)
         if ((*itr)->GetInstanceID() == instanceId)

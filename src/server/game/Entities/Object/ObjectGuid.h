@@ -20,6 +20,7 @@
 
 #include "ByteBuffer.h"
 #include "Define.h"
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <list>
@@ -294,7 +295,8 @@ public:
 protected:
     static void HandleCounterOverflow(HighGuid high);
     static bool GetClusterGuid(HighGuid high, uint16 realmId, ObjectGuid::LowType& clusterGuid);
-    ObjectGuid::LowType _nextGuid;
+    // generated from several map update threads at once
+    std::atomic<ObjectGuid::LowType> _nextGuid;
 };
 
 template<HighGuid high>

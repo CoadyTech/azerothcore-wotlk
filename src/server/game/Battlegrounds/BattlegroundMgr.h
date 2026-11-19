@@ -22,6 +22,7 @@
 #include "BattlegroundQueue.h"
 #include "CreatureAIImpl.h"
 #include "DBCEnums.h"
+#include <mutex>
 #include <unordered_map>
 
 typedef std::map<uint32, Battleground*> BattlegroundContainer;
@@ -154,6 +155,9 @@ private:
     BattlegroundQueue m_BattlegroundQueues[MAX_BATTLEGROUND_QUEUE_TYPES];
 
     std::vector<uint64> m_QueueUpdateScheduler;
+    // battlegrounds on different map update threads schedule queue updates and (un)register free slots
+    std::mutex _queueUpdateLock;
+    std::mutex _freeSlotQueueLock;
     bool   m_ArenaTesting;
     bool   m_Testing;
     Seconds m_NextAutoDistributionTime;

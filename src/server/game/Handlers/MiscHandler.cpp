@@ -1737,8 +1737,15 @@ void WorldSession::HandleUpdateMissileTrajectory(WorldPacket& recvPacket)
     recvPacket >> targetX >> targetY >> targetZ;
     recvPacket >> moveStop;
 
+    // only for spells cast by the player or by a unit the player controls, and only with sane values
     Unit* caster = ObjectAccessor::GetUnit(*_player, guid);
-    Spell* spell = caster ? caster->GetCurrentSpell(CURRENT_GENERIC_SPELL) : nullptr;
+    if (caster && caster->GetCharmerOrOwnerPlayerOrPlayerItself() != _player)
+        caster = nullptr;
+
+    bool const validValues = std::isfinite(elevation) && std::isfinite(speed) &&
+        Acore::IsValidMapCoord(curX, curY, curZ) && Acore::IsValidMapCoord(targetX, targetY, targetZ);
+
+    Spell* spell = caster && validValues ? caster->GetCurrentSpell(CURRENT_GENERIC_SPELL) : nullptr;
     if (!spell || spell->m_spellInfo->Id != spellId || !spell->m_targets.HasDst() || !spell->m_targets.HasSrc())
     {
         recvPacket.rfinish();

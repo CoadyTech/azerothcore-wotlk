@@ -7432,6 +7432,10 @@ SpellCastResult Spell::CheckRange(bool strict)
         }
     }
 
+    // The destination comes from the client; trajectory spells skip the distance check below
+    if (m_targets.HasDst() && !m_targets.GetDstPos()->IsPositionValid())
+        return SPELL_FAILED_OUT_OF_RANGE;
+
     if (m_targets.HasDst() && !m_targets.HasTraj())
     {
         if (!m_caster->IsWithinDist3d(m_targets.GetDstPos(), max_range + m_caster->GetLeewayBonusRadius()))
